@@ -24,7 +24,7 @@ from aiogram.filters import Command
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # ЗАМЕНИТЕ НА СВОЙ НОВЫЙ ТОКЕН ИЗ @BotFather!
-BOT_TOKEN = "8025881019:AAEaBEr6MWnQgD5djbNLZwXW-GPquwaTrc8"
+BOT_TOKEN = "8595365456:AAFgwudBkyxqrR9phLZfUyrtqaKgDRkJB88"
 FOUNDER_PASSWORD = "milka"
 DB_URL = "sqlite+aiosqlite:///tg_bot.db"
 
