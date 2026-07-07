@@ -23,7 +23,8 @@ from aiogram.filters import Command
 # ==========================================
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-BOT_TOKEN = "8595365456:AAFgwudBkyxqrR9phLZfUyrtqaKgDRkJB88"
+# ЗАМЕНИТЕ НА СВОЙ НОВЫЙ ТОКЕН ИЗ @BotFather!
+BOT_TOKEN = "8025881019:AAEaBEr6MWnQgD5djbNLZwXW-GPquwaTrc8"
 FOUNDER_PASSWORD = "milka"
 DB_URL = "sqlite+aiosqlite:///tg_bot.db"
 
@@ -44,7 +45,7 @@ class User(Base):
     gender: Mapped[str] = mapped_column(String(10), nullable=False)
     age: Mapped[int] = mapped_column(Integer, nullable=False)
     premium_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, default=None)
-    reg_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    reg_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     chat_count: Mapped[int] = mapped_column(Integer, default=0)
     complaint_count: Mapped[int] = mapped_column(Integer, default=0)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -57,7 +58,7 @@ class User(Base):
     def is_premium(self) -> bool:
         if self.premium_until is None:
             return False
-        return self.premium_until > datetime.utcnow()
+        return self.premium_until > datetime.now()
 
 
 class UserSettings(Base):
@@ -78,7 +79,7 @@ class Dialog(Base):
     user1_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     user2_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    start_time: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    start_time: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     end_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
 
@@ -88,7 +89,7 @@ class Complaint(Base):
     from_tg_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     to_tg_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     reason: Mapped[str] = mapped_column(String(50), nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
 class LogAction(Base):
@@ -96,7 +97,7 @@ class LogAction(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tg_id: Mapped[int] = mapped_column(BigInteger, nullable=True)
     action: Mapped[str] = mapped_column(Text, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
 async def init_db():
@@ -113,16 +114,6 @@ async def init_db():
                 await conn.execute(text("ALTER TABLE users ADD COLUMN premium_until DATETIME DEFAULT NULL;"))
                 await conn.commit()
                 logging.info("✅ Колонка premium_until успешно внедрена!")
-
-            if "is_premium" in columns:
-                logging.info("🔧 Удаляю устаревшую колонку is_premium из таблицы...")
-                try:
-                    await conn.execute(text("ALTER TABLE users DROP COLUMN is_premium;"))
-                    await conn.commit()
-                    logging.info("✅ Устаревшая колонка успешно удалена!")
-                except Exception as drop_err:
-                    logging.warning(
-                        f"Прямое удаление колонки не поддерживается SQLite. Пропускаем, если база пересоздастся вручную: {drop_err}")
         except Exception as e:
             logging.error(f"Не удалось выполнить автомиграцию: {e}")
 
@@ -269,8 +260,9 @@ class AuthMiddleware(BaseMiddleware):
 # 6. КЛАВИАТУРЫ (KEYBOARDS)
 # ==========================================
 def kb_main_menu():
+    # ИСПРАВЛЕНО: Добавлена кнопка "Пошлый чат (18+)" в разметку основного меню
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="🔍 Найти собеседника")],
+        [KeyboardButton(text="🔍 Найти собеседника"), KeyboardButton(text="🔞 Пошлый чат (18+)")],
         [KeyboardButton(text="👤 Профиль"), KeyboardButton(text="⚙ Настройки")],
         [KeyboardButton(text="📜 Правила"), KeyboardButton(text="🆘 Поддержка")],
         [KeyboardButton(text="⭐ Premium"), KeyboardButton(text="💎 Купить Premium")]
@@ -363,14 +355,14 @@ async def view_profile(message: Message, db_user: Optional[User]):
     else:
         prem = "❌ Отсутствует"
 
-    text = (f"👤 **Ваш профиль:**\n\n"
-            f" Пол: {g}\n"
-            f" Возраст: {db_user.age}\n"
-            f" Premium: {prem}\n"
-            f" Всего чатов: {db_user.chat_count}\n"
-            f" Жалоб на вас: {db_user.complaint_count}\n"
-            f" Статус: {db_user.role.upper()}")
-    await message.answer(text, parse_mode="Markdown")
+    profile_text = (f"👤 **Ваш профиль:**\n\n"
+                    f" Пол: {g}\n"
+                    f" Возраст: {db_user.age}\n"
+                    f" Premium: {prem}\n"
+                    f" Всего чатов: {db_user.chat_count}\n"
+                    f" Жалоб на вас: {db_user.complaint_count}\n"
+                    f" Статус: {db_user.role.upper()}")
+    await message.answer(profile_text, parse_mode="Markdown")
 
 
 @router.message(F.text == "📜 Правила")
@@ -489,7 +481,7 @@ async def cmd_search_menu(message: Message, db_user: Optional[User]):
         [InlineKeyboardButton(text="🌍 Всё равно (Любой пол)", callback_data="search_gender_ALL")]
     ])
 
-    await message.answer("Кого вы хотите найти?", reply_markup=kb)
+    await message.answer("Ккого вы хотите найти?", reply_markup=kb)
 
 
 @router.callback_query(F.data.startswith("search_gender_"))
@@ -527,7 +519,7 @@ async def end_chat(message: Message, state: FSMContext):
             await session.execute(update(Dialog).where(
                 ((Dialog.user1_id == message.from_user.id) & (Dialog.user2_id == partner_id)) | (
                         (Dialog.user1_id == partner_id) & (Dialog.user2_id == message.from_user.id))).where(
-                Dialog.is_active == True).values(is_active=False, end_time=datetime.utcnow()))
+                Dialog.is_active == True).values(is_active=False, end_time=datetime.now()))
             await session.commit()
 
         partner_storage_key = StorageKey(bot_id=message.bot.id, chat_id=partner_id, user_id=partner_id)
@@ -548,7 +540,7 @@ async def next_chat(message: Message, state: FSMContext, db_user: Optional[User]
             await session.execute(update(Dialog).where(
                 ((Dialog.user1_id == message.from_user.id) & (Dialog.user2_id == partner_id)) | (
                         (Dialog.user1_id == partner_id) & (Dialog.user2_id == message.from_user.id))).where(
-                Dialog.is_active == True).values(is_active=False, end_time=datetime.utcnow()))
+                Dialog.is_active == True).values(is_active=False, end_time=datetime.now()))
             await session.commit()
 
         partner_storage_key = StorageKey(bot_id=message.bot.id, chat_id=partner_id, user_id=partner_id)
@@ -621,13 +613,11 @@ async def messaging_bridge(message: Message, db_user: Optional[User]):
     partner_caption = f"💬 От собеседника: {message.caption}" if message.caption else "💬 От собеседника"
 
     try:
-        # 1. ТЕКСТОВЫЕ СООБЩЕНИЯ
         if message.text:
             formatted_text = f"💬 **Собеседник:**\n{message.text}"
             await message.bot.send_message(partner_id, formatted_text, parse_mode="Markdown")
             return
 
-        # 2. МЕДИА-КОНТЕНТ С ПРОВЕРКАМИ
         if message.photo:
             if s.allow_photo:
                 await message.bot.send_photo(partner_id, message.photo[-1].file_id, caption=partner_caption)
@@ -672,6 +662,56 @@ async def messaging_bridge(message: Message, db_user: Optional[User]):
 
 
 # --- PREMIUM И КАТЕГОРИЯ ПОШЛЫЙ ЧАТ (18+) ---
+
+# ИСПРАВЛЕНО: Добавлен хэндлер для обработки нажатия кнопки меню "Пошлый чат (18+)"
+@router.message(F.text == "🔞 Пошлый чат (18+)")
+async def cmd_adult_menu_button(message: Message, state: FSMContext, db_user: Optional[User]):
+    if not db_user: return
+
+    # Жесткая проверка на наличие премиума
+    if not db_user.is_premium:
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Купить Premium", callback_data="buy_premium_menu_redirect")]
+        ])
+        await message.answer(
+            "🔒 **Этот режим доступен только Premium пользователям!**\n\n"
+            "В пошлом чате вы сможете общаться без цензуры на любые темы. Оформите Premium, чтобы открыть доступ.",
+            parse_mode="Markdown", reply_markup=kb
+        )
+        return
+
+    # Проверка возраста по БД
+    if db_user.age < 18:
+        await message.answer("🚫 Вход воспрещен! Вам нет 18 лет согласно вашим регистрационным данным.")
+        return
+
+    # Если всё ок — отправляем инлайн-кнопку подтверждения входа
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔥 Да, мне есть 18. Войти", callback_data="confirm_adult_search")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_adult")]
+    ])
+    await message.answer(
+        "⚠️ Вы входите в категорию для взрослых. Продолжая, вы подтверждаете, что вам исполнилось 18 лет и вы берете на себя всю ответственность.",
+        reply_markup=kb)
+
+
+@router.callback_query(F.data == "buy_premium_menu_redirect")
+async def process_premium_redirect(callback: CallbackQuery):
+    await callback.message.delete()
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⏳ 1 час — 15 ⭐️", callback_data="buy_premium_1h")],
+        [InlineKeyboardButton(text="⏰ 24 часа — 35 ⭐️", callback_data="buy_premium_24h")],
+        [InlineKeyboardButton(text="📅 1 неделя — 75 ⭐️", callback_data="buy_premium_1w")],
+        [InlineKeyboardButton(text="🗓 1 месяц — 115 ⭐️", callback_data="buy_premium_1m")],
+        [InlineKeyboardButton(text="💎 Навсегда — 230 ⭐️", callback_data="buy_premium_forever")]
+    ])
+    purchase_info = ("💎 **Оформление Premium доступа**\n\n"
+                     "Покупка Premium осуществляется вручную через Основателя.\n"
+                     "Выберите подходящий тариф ниже, чтобы узнать детали оплаты:")
+    await callback.message.answer(purchase_info, reply_markup=kb)
+    await callback.answer()
+
+
 @router.message(F.text == "⭐ Premium")
 async def premium_status_menu(message: Message, db_user: Optional[User]):
     if not db_user: return
@@ -690,18 +730,17 @@ async def premium_status_menu(message: Message, db_user: Optional[User]):
         status_text = "❌ **НЕ АКТИВЕН**\n\nВы пользуетесь базовой версией бота. Чтобы снять ограничения, выберите пункт «💎 Купить Premium» в меню."
         kb = None
 
-    text = (f"⭐ **Ваш Premium статус:** {status_text}\n\n"
-            f"**Что дает Premium:**\n"
-            f"✅ Выбор пола собеседника при поиске\n"
-            f"✅ Приоритет при поиске (находит людей в 2 раза быстрее)\n"
-            f"✅ Доступ в закрытый режим '🔥 Пошлый чат (18+)'\n"
-            f"✅ Возможность отключать медиа (фото/видео/голос) в настройках\n"
-            f"✅ Премиальный значок в профиле")
+    purchase_text = (f"⭐ **Ваш Premium статус:** {status_text}\n\n"
+                     f"**Что дает Premium:**\n"
+                     f"✅ Выбор пола собеседника при поиске\n"
+                     f"✅ Приоритет при поиске (находит людей в 2 раза быстрее)\n"
+                     f"✅ Доступ в закрытый режим '🔥 Пошлый чат (18+)'\n"
+                     f"✅ Возможность отключать медиа (фото/видео/голос) в настройках\n"
+                     f"✅ Премиальный значок в профиле")
 
-    await message.answer(text, parse_mode="Markdown", reply_markup=kb)
+    await message.answer(purchase_text, parse_mode="Markdown", reply_markup=kb)
 
 
-# ИСПРАВЛЕНО: Цены в Telegram Stars, автоматическое зачисление отключено
 @router.message(F.text == "💎 Купить Premium")
 async def premium_purchase_menu(message: Message, db_user: Optional[User]):
     if not db_user: return
@@ -718,13 +757,32 @@ async def premium_purchase_menu(message: Message, db_user: Optional[User]):
         [InlineKeyboardButton(text="💎 Навсегда — 230 ⭐️", callback_data="buy_premium_forever")]
     ])
 
-    text = ("💎 **Оформление Premium доступа**\n\n"
-            "Покупка Premium осуществляется вручную через Основателя.\n"
-            "Выберите подходящий тариф ниже, чтобы узнать детали оплаты:")
-    await message.answer(text, reply_markup=kb)
+    purchase_info = ("💎 **Оформление Premium доступа**\n\n"
+                     "Покупка Premium осуществляется вручную через Основателя.\n"
+                     "Выберите подходящий тариф ниже, чтобы узнать детали оплаты:")
+    await message.answer(purchase_info, reply_markup=kb)
 
 
-# ИСПРАВЛЕНО: Теперь кнопка выдает инструкцию со ссылкой на основателя @solnvox
+@router.callback_query(F.data == "enter_adult_zone")
+async def adult_chat_entry(callback: CallbackQuery, state: FSMContext, db_user: Optional[User]):
+    if not db_user: return
+    if not db_user.is_premium:
+        await callback.answer("🔒 Этот режим доступен только Premium пользователям!", show_alert=True)
+        return
+    if db_user.age < 18:
+        await callback.answer("🚫 Вам нет 18 лет согласно регистрационным данным!", show_alert=True)
+        return
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔥 Да, мне есть 18. Войти", callback_data="confirm_adult_search")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_adult")]
+    ])
+    await callback.message.answer(
+        "⚠️ Вы входите в категорию для взрослых. Продолжая, вы подтверждаете, что вам исполнилось 18 лет и вы берете на себя всю ответственность.",
+        reply_markup=kb)
+    await callback.answer()
+
+
 @router.callback_query(F.data.startswith("buy_premium_"))
 async def process_buy_premium(callback: CallbackQuery):
     duration_type = callback.data.replace("buy_premium_", "")
@@ -752,26 +810,6 @@ async def process_buy_premium(callback: CallbackQuery):
     )
 
     await callback.message.answer(text_instruction, parse_mode="Markdown")
-    await callback.answer()
-
-
-@router.callback_query(F.data == "enter_adult_zone")
-async def adult_chat_entry(callback: CallbackQuery, state: FSMContext, db_user: Optional[User]):
-    if not db_user: return
-    if not db_user.is_premium:
-        await callback.answer("🔒 Этот режим доступен только Premium пользователям!", show_alert=True)
-        return
-    if db_user.age < 18:
-        await callback.answer("🚫 Вам нет 18 лет согласно регистрационным данным!", show_alert=True)
-        return
-
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔥 Да, мне есть 18. Войти", callback_data="confirm_adult_search")],
-        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_adult")]
-    ])
-    await callback.message.answer(
-        "⚠️ Вы входите в категорию для взрослых. Продолжая, вы подтверждаете, что вам исполнилось 18 лет и вы берете на себя всю ответственность.",
-        reply_markup=kb)
     await callback.answer()
 
 
@@ -815,9 +853,9 @@ async def cmd_founder(message: Message):
 async def admin_stats(message: Message, db_user: Optional[User]):
     if not db_user or db_user.role not in ["founder", "admin"]: return
     async with async_session() as session:
-        day_ago = datetime.utcnow() - timedelta(days=1)
+        day_ago = datetime.now() - timedelta(days=1)
         tot_u = await session.scalar(select(func.count(User.tg_id)))
-        prem_u = await session.scalar(select(func.count(User.tg_id)).where(User.premium_until > datetime.utcnow()))
+        prem_u = await session.scalar(select(func.count(User.tg_id)).where(User.premium_until > datetime.now()))
         ban_u = await session.scalar(select(func.count(User.tg_id)).where(User.is_banned == True))
         tot_d = await session.scalar(select(func.count(Dialog.id)))
         tot_c = await session.scalar(select(func.count(Complaint.id)))
@@ -896,14 +934,14 @@ async def admin_giveprem(message: Message, db_user: Optional[User]):
             await message.answer("Использование: `/giveprem ID ЧАСЫ` (0 — навсегда)")
             return
 
-        t_id = int(args[1])
+        t_id = int(args[1].strip())
         hours = int(args[2])
 
         if hours == 0:
             new_until = datetime(2099, 12, 31, 23, 59, 59)
             msg_text = "навсегда"
         else:
-            new_until = datetime.utcnow() + timedelta(hours=hours)
+            new_until = datetime.now() + timedelta(hours=hours)
             msg_text = f"на {hours} час(ов)"
 
         async with async_session() as session:
@@ -914,6 +952,8 @@ async def admin_giveprem(message: Message, db_user: Optional[User]):
             await message.bot.send_message(t_id, f"🎉 Администратор активировал вам Premium статус {msg_text}!")
         except Exception:
             pass
+    except ValueError:
+        await message.answer("❌ Ошибка: ID пользователя и ЧАСЫ должны быть исключительно числами.")
     except Exception as e:
         await message.answer(f"Ошибка при выдаче Premium: {e}")
 
@@ -924,7 +964,7 @@ async def admin_giveprem_all(message: Message, db_user: Optional[User]):
     try:
         args = message.text.split()
         if len(args) < 2:
-            await message.answer("Использование: `/giveprem_all ДНИ` (например, `/giveprem_all 30` или `0` — навсегда)")
+            await message.answer("Использование: `/giveprem_all ДНИ` (0 — навсегда)")
             return
 
         days = int(args[1])
@@ -933,7 +973,7 @@ async def admin_giveprem_all(message: Message, db_user: Optional[User]):
             new_until = datetime(2099, 12, 31, 23, 59, 59)
             msg_text = "навсегда"
         else:
-            new_until = datetime.utcnow() + timedelta(days=days)
+            new_until = datetime.now() + timedelta(days=days)
             msg_text = f"на {days} дней"
 
         async with async_session() as session:
@@ -941,6 +981,8 @@ async def admin_giveprem_all(message: Message, db_user: Optional[User]):
             await session.commit()
 
         await message.answer(f"⭐ Premium статус успешно выдан абсолютно ВСЕМ пользователям {msg_text}.")
+    except ValueError:
+        await message.answer("❌ Ошибка: Количество дней должно быть целым числом.")
     except Exception as e:
         await message.answer(f"Ошибка при массовой выдаче Premium: {e}")
 
